@@ -1,0 +1,28 @@
+{
+    "pages": [
+        {
+            "path": "pages/index/index",
+            "style": {
+                "navigationBarTitleText": "知命"
+            }
+        },
+        {
+            "path": "pages/result/index",
+            "style": {
+                "navigationBarTitleText": "命盘详情"
+            }
+        },
+        {
+            "path": "pages/ai/index",
+            "style": {
+                "navigationBarTitleText": "AI 深度解读"
+            }
+        }
+    ],
+    "globalStyle": {
+        "navigationBarTextStyle": "black",
+        "navigationBarTitleText": "智能命理助手",
+        "navigationBarBackgroundColor": "#F8F8F8",
+        "backgroundColor": "#F8F8F8"
+    }
+}

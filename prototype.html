@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>智能命理助手 - 完整原型</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入思源宋体 (WebFont) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- 基础变量与字体 --- */
+        :root {
+            --primary: #1E9E8D; /* 青绿主色 */
+            --dark: #1F2937;
+            --light-glass: rgba(255, 255, 255, 0.85); /* 高透白底 */
+            --glass-border: rgba(255, 255, 255, 0.6);
+        }
+
+        body {
+            font-family: 'Noto Serif SC', serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+
+        /* --- 核心容器与背景 --- */
+        #app-container {
+            width: 100%;
+            max-width: 430px; /* 手机尺寸限制 */
+            height: 100vh;
+            margin: 0 auto;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.2);
+            background-color: #f5f5f2;
+        }
+
+        #app-container::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: url('./backgorund.png');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.4;
+            filter: grayscale(0.2);
+            animation: mistFade 14s ease-in-out infinite alternate;
+            z-index: -2;
+        }
+
+        /* 增加一个遮罩层，确保背景图不会太花哨影响阅读 */
+        .bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 上白下透，模拟水墨留白 */
+            background: linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.4) 60%, rgba(255,255,255,0.8) 100%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* --- 通用玻璃卡片样式 --- */
+        .glass-card {
+            background: var(--light-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            border-radius: 16px;
+        }
+
+        /* --- 页面切换动画 --- */
+        .page {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            position: relative;
+            z-index: 10;
+            min-height: 100%;
+            padding-bottom: 40px;
+        }
+        .page.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* --- 输入控件美化 --- */
+        .input-group {
+            position: relative;
+            border-bottom: 1px solid #9CA3AF;
+            transition: border-color 0.3s;
+        }
+        .input-group:focus-within {
+            border-bottom-color: var(--primary);
+        }
+        .custom-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 12px 0;
+            font-size: 16px;
+            color: var(--dark);
+            font-family: sans-serif; /* 输入文字用无衬线体更易读 */
+        }
+
+        /* --- 按钮样式 --- */
+        .btn-primary {
+            background: linear-gradient(135deg, #1E9E8D 0%, #147D6F 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(30, 158, 141, 0.4);
+            transition: transform 0.2s;
+        }
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        /* --- 结果页网格 --- */
+        .bazi-grid-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 8px;
+        }
+
+        /* --- AI 打字机光标 --- */
+        .cursor::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+            color: var(--primary);
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* --- 加载太极动画 --- */
+        .taiji-spinner {
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            /* 使用 emoji 或 svg 模拟 */
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='translate(50 50) scale(0.9)'%3E%3Cpath d='M0,-50 A50,50 0 1,0 0,50 A25,25 0 0,1 0,0 A25,25 0 0,0 0,-50 Z' fill='%23000'/%3E%3Cpath d='M0,-50 A50,50 0 1,1 0,50 A25,25 0 0,1 0,0 A25,25 0 0,0 0,-50 Z' fill='%23fff' stroke='%23ddd' stroke-width='1'/%3E%3Ccircle cx='0' cy='-25' r='6' fill='%23fff'/%3E%3Ccircle cx='0' cy='25' r='6' fill='%23000'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: contain;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        @keyframes mistFade {
+            0% { opacity: 0.35; transform: scale(1) translateY(0); }
+            50% { opacity: 0.5; transform: scale(1.02) translateY(-6px); }
+            100% { opacity: 0.4; transform: scale(1.01) translateY(4px); }
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div class="bg-overlay"></div>
+
+    <!-- ================== 1. 首页 (输入页) ================== -->
+    <div id="page-home" class="page active">
+        <!-- 顶部留白，展示背景图的阴阳鱼 -->
+        <div class="h-[35vh] w-full flex items-center justify-center relative">
+            <!-- 标题 -->
+            <div class="text-center mt-10 glass-card px-6 py-2 inline-block">
+                <h1 class="text-3xl font-bold tracking-widest text-gray-800">知 命</h1>
+                <p class="text-xs text-gray-500 mt-1 uppercase tracking-[0.3em]">DeepDestiny AI</p>
+            </div>
+        </div>
+
+        <!-- 输入卡片 (底部滑入效果) -->
+        <div class="px-6">
+            <div class="glass-card p-8">
+                <div class="text-center mb-8">
+                    <p class="text-gray-600 text-sm italic">“万物负阴而抱阳，冲气以为和”</p>
+                </div>
+
+                <!-- 表单 -->
+                <div class="space-y-8">
+                    <!-- 日期 -->
+                    <div class="input-group">
+                        <label class="text-xs text-teal-700 font-bold absolute -top-3 left-0">出生日期 (阳历)</label>
+                        <div class="flex items-center">
+                            <i class="far fa-calendar text-gray-400 mr-3"></i>
+                            <input type="date" id="input-date" class="custom-input" placeholder="选择日期">
+                        </div>
+                    </div>
+
+                    <!-- 时辰 -->
+                    <div class="input-group">
+                        <label class="text-xs text-teal-700 font-bold absolute -top-3 left-0">出生时辰</label>
+                        <div class="flex items-center">
+                            <i class="far fa-clock text-gray-400 mr-3"></i>
+                            <select id="input-time" class="custom-input bg-transparent">
+                                <option value="" disabled selected>请选择时辰</option>
+                                <option value="不详">时辰不详</option>
+                                <option value="子时">子时 (23:00-01:00)</option>
+                                <option value="丑时">丑时 (01:00-03:00)</option>
+                                <option value="寅时">寅时 (03:00-05:00)</option>
+                                <!-- 省略其他，开发时补全 -->
+                                <option value="巳时">巳时 (09:00-11:00)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 按钮 -->
+                <div class="mt-10">
+                    <button onclick="startCalculation()" class="btn-primary w-full py-4 rounded-xl font-bold text-lg tracking-widest flex items-center justify-center gap-2">
+                        <span>开始排盘</span>
+                        <i class="fas fa-arrow-right text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <p class="text-center text-[10px] text-gray-400 mt-4">
+                点击即代表同意《服务协议》 | 结果仅供娱乐
+            </p>
+        </div>
+    </div>
+
+    <!-- ================== 2. 结果展示页 ================== -->
+    <div id="page-result" class="page">
+        <!-- 导航栏 -->
+        <div class="pt-10 pb-4 px-4 flex items-center justify-between sticky top-0 z-20 glass-card rounded-none border-x-0 border-t-0 border-b border-white/40 mb-4">
+            <button onclick="navTo('page-home')" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/50 text-gray-600">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="font-bold text-gray-800">命盘详情</span>
+            <div class="w-8"></div> <!-- 占位 -->
+        </div>
+
+        <div class="px-4 pb-24">
+            <!-- 核心八字卡片 -->
+            <div class="glass-card p-5 mb-4 relative overflow-hidden">
+                <!-- 装饰水印 -->
+                <i class="fas fa-dragon absolute -right-4 -bottom-4 text-8xl text-gray-400/10 pointer-events-none"></i>
+                
+                <!-- 日期对照 -->
+                <div class="flex justify-between items-center mb-6 border-b border-gray-300/30 pb-3">
+                    <div class="text-left">
+                        <div class="text-[10px] text-gray-500">阳历</div>
+                        <div class="font-sans font-bold text-gray-800">2025.11.20</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-gray-500">农历</div>
+                        <div class="font-bold text-teal-800">十月初一</div>
+                    </div>
+                </div>
+
+                <!-- 四柱排盘 -->
+                <div class="grid grid-cols-4 gap-2 mb-6">
+                    <!-- 年柱 -->
+                    <div class="bazi-grid-item">
+                        <span class="text-xs text-gray-400 mb-1">年柱</span>
+                        <span class="text-xl font-bold text-gray-800 block">乙</span>
+                        <span class="text-xl font-bold text-gray-800 block">巳</span>
+                    </div>
+                    <!-- 月柱 -->
+                    <div class="bazi-grid-item">
+                        <span class="text-xs text-gray-400 mb-1">月柱</span>
+                        <span class="text-xl font-bold text-gray-800 block">丁</span>
+                        <span class="text-xl font-bold text-gray-800 block">亥</span>
+                    </div>
+                    <!-- 日柱 (高亮) -->
+                    <div class="bazi-grid-item border border-teal-400 bg-teal-50/50">
+                        <span class="text-xs text-teal-600 mb-1">日主</span>
+                        <span class="text-xl font-bold text-teal-900 block">癸</span>
+                        <span class="text-xl font-bold text-teal-900 block">巳</span>
+                    </div>
+                    <!-- 时柱 -->
+                    <div class="bazi-grid-item">
+                        <span class="text-xs text-gray-400 mb-1">时柱</span>
+                        <span class="text-xl font-bold text-gray-800 block">壬</span>
+                        <span class="text-xl font-bold text-gray-800 block">子</span>
+                    </div>
+                </div>
+
+                <!-- 五行量化 -->
+                <div>
+                    <div class="flex justify-between text-xs text-gray-500 mb-2">
+                        <span>五行分布</span>
+                        <span>生肖：<span class="text-gray-800 font-bold">蛇</span></span>
+                    </div>
+                    <div class="flex h-3 rounded-full overflow-hidden shadow-inner">
+                        <div class="bg-green-600 w-[20%]" title="木"></div>
+                        <div class="bg-red-500 w-[40%]" title="火"></div>
+                        <div class="bg-yellow-500 w-[0%]" title="土"></div>
+                        <div class="bg-gray-300 w-[0%]" title="金"></div>
+                        <div class="bg-blue-500 w-[40%]" title="水"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-gray-400 mt-1 font-sans">
+                        <span>木</span><span>火</span><span>土</span><span>金</span><span>水</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 缺失警示 (红色系) -->
+            <div class="glass-card p-4 mb-4 border-l-4 border-l-red-400 bg-red-50/60">
+                <div class="flex items-start">
+                    <div class="mt-1 mr-3 text-red-500"><i class="fas fa-bell"></i></div>
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-sm">五行缺失检测</h3>
+                        <p class="text-xs text-gray-600 mt-1">
+                            您的命盘中五行缺 <b class="text-red-600 text-sm">金、土</b>。
+                            <br>五行流转不息，缺失可能影响运势平衡。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 广告位 -->
+            <div class="glass-card p-3 flex items-center justify-center border-dashed border-gray-300 mb-6">
+                <span class="text-xs text-gray-400">广告：招财开运金饰推荐</span>
+            </div>
+        </div>
+
+        <!-- 底部悬浮按钮 -->
+        <div class="fixed bottom-0 left-0 w-full p-4 pb-8 bg-gradient-to-t from-white via-white/90 to-transparent z-30 max-w-[430px] mx-auto left-0 right-0">
+            <button onclick="goToAIReasoning()" class="btn-primary w-full py-3 rounded-full text-lg font-bold flex items-center justify-center shadow-xl animate-pulse">
+                <i class="fas fa-sparkles mr-2"></i> AI 深度推理解读
+            </button>
+        </div>
+    </div>
+
+    <!-- ================== 3. AI 推理/解释页 ================== -->
+    <div id="page-ai" class="page">
+        <!-- 顶部 -->
+        <div class="pt-12 px-6 flex items-center justify-between z-20 relative">
+            <div class="flex items-center text-gray-800">
+                <div class="w-8 h-8 rounded bg-teal-600 text-white flex items-center justify-center mr-3">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold text-lg leading-none">DeepSeek</h2>
+                    <span class="text-[10px] text-gray-500">命理模型推理中...</span>
+                </div>
+            </div>
+            <button onclick="navTo('page-result')" class="w-8 h-8 rounded-full bg-white/40 flex items-center justify-center text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- 内容滚动区 -->
+        <div class="px-6 mt-6 pb-10">
+            <div class="glass-card min-h-[70vh] p-6 relative">
+                
+                <!-- 思考状态 (初始显示) -->
+                <div id="ai-thinking" class="flex flex-col items-center justify-center h-64">
+                    <div class="taiji-spinner mb-4 grayscale opacity-60"></div>
+                    <p class="text-sm text-gray-500 tracking-widest">正在解析天干地支...</p>
+                    <p class="text-xs text-gray-400 mt-2">Connecting to DeepSeek API</p>
+                </div>
+
+                <!-- 结果文字 (初始隐藏) -->
+                <div id="ai-content" class="hidden">
+                    <div class="prose prose-sm text-gray-700 leading-relaxed font-sans">
+                        <!-- 动态插入点 -->
+                        <div id="typewriter-text"></div>
+                    </div>
+                    
+                    <!-- 底部引用 -->
+                    <div class="mt-8 pt-4 border-t border-gray-200 text-center">
+                        <p class="font-serif text-lg text-teal-800 italic" id="poetry-quote"></p>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- 操作按钮 -->
+            <div class="mt-6 flex gap-3">
+                <button class="flex-1 py-3 bg-white/60 backdrop-blur rounded-xl text-gray-700 text-sm font-bold border border-white/50">
+                    <i class="fas fa-share-alt mr-1"></i> 分享报告
+                </button>
+                <button class="flex-1 py-3 bg-teal-50/60 backdrop-blur rounded-xl text-teal-700 text-sm font-bold border border-teal-100">
+                    <i class="fas fa-lock mr-1"></i> 解锁流年
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 (全屏) -->
+    <div id="global-loader" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center hidden">
+        <div class="taiji-spinner mb-4"></div>
+        <p class="text-gray-500 tracking-widest animate-pulse">乾坤排盘中...</p>
+    </div>
+
+</div>
+
+<script>
+    // --- 简单的单页路由逻辑 ---
+    
+    function navTo(pageId) {
+        // 隐藏所有页
+        document.querySelectorAll('.page').forEach(el => {
+            el.classList.remove('active');
+            setTimeout(() => {
+                if(!el.classList.contains('active')) el.style.display = 'none';
+            }, 400); // 等待 CSS transition
+        });
+
+        // 显示目标页
+        const target = document.getElementById(pageId);
+        target.style.display = 'block';
+        // 强制重绘
+        setTimeout(() => {
+            target.classList.add('active');
+        }, 10);
+    }
+
+    function startCalculation() {
+        const date = document.getElementById('input-date').value;
+        if(!date) {
+            alert('请赐予您的生辰八字');
+            return;
+        }
+
+        // 显示全屏加载
+        const loader = document.getElementById('global-loader');
+        loader.classList.remove('hidden');
+        loader.style.display = 'flex';
+
+        // 模拟计算延迟
+        setTimeout(() => {
+            loader.style.display = 'none';
+            navTo('page-result');
+        }, 1500);
+    }
+
+    function goToAIReasoning() {
+        navTo('page-ai');
+        
+        // 重置状态
+        document.getElementById('ai-thinking').style.display = 'flex';
+        document.getElementById('ai-content').classList.add('hidden');
+        document.getElementById('typewriter-text').innerHTML = '';
+        document.getElementById('poetry-quote').innerHTML = '';
+
+        // 模拟 AI 思考后输出
+        setTimeout(() => {
+            document.getElementById('ai-thinking').style.display = 'none';
+            document.getElementById('ai-content').classList.remove('hidden');
+            startTypewriter();
+        }, 2000);
+    }
+
+    // --- 打字机效果 ---
+    function startTypewriter() {
+        const text = `
+<h3 class="font-bold text-gray-900 text-base mb-2">【性格侧写】</h3>
+<p class="mb-4">日主<b>癸水</b>生于亥月，水旺之时。您如同深潭之水，外表平静内敛，实则内心智慧深邃，观察力极强。您善于以柔克刚，适应环境能力极佳，但有时难免多愁善感，思虑过重。</p>
+
+<h3 class="font-bold text-gray-900 text-base mb-2">【五行补救】</h3>
+<p class="mb-4">命局缺<b>金、土</b>。土能止水，金能生水（此处需通关）。建议佩戴<b>黄水晶</b>或<b>金银饰品</b>。生活中多穿米色、白色衣物。事业方向适合向<b>西方</b>或<b>中原</b>地区发展，从事金融或房地产相关行业可获贵人相助。</p>
+`;
+        const poetry = "“行到水穷处，坐看云起时。”";<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>智能命理助手 - 完整原型</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入思源宋体 (WebFont) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- 基础变量与字体 --- */
+        :root {
+            --primary: #1E9E8D; /* 青绿主色 */
+            --dark: #1F2937;
+            --light-glass: rgba(255, 255, 255, 0.85); /* 高透白底 */
+            --glass-border: rgba(255, 255, 255, 0.6);
+        }
+
+        body {
+            font-family: 'Noto Serif SC', serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+
+        /* --- 核心容器 --- */
+        #app-container {
+            width: 100%;
+            max-width: 430px; /* 手机尺寸限制 */
+            height: 100vh;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden; /* 确保背景放大时不溢出 */
+            box-shadow: 0 0 30px rgba(0,0,0,0.2);
+            background-color: #fff;
+        }
+
+        /* --- 动态水墨背景层 (新加) --- */
+        .ink-bg-anim {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            
+            /* ★★★ 请确保您的本地图片放在同级目录，并命名为 background.jpg ★★★ */
+            /* 或者将下方的 url('./background.jpg') 修改为您实际的文件路径 */
+            background-image: url('./backgorund.png'); 
+            
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            
+            /* 应用呼吸动画 */
+            animation: ink-breathe 12s ease-in-out infinite alternate;
+            opacity: 0.6; /* 基础透明度，防止喧宾夺主 */
+            transform-origin: center center;
+        }
+
+        /* 定义呼吸动画：极缓慢的缩放和透明度变化 */
+        @keyframes ink-breathe {
+            0% {
+                opacity: 0.4;
+                transform: scale(1.0);
+            }
+            100% {
+                opacity: 0.7;
+                transform: scale(1.05); /* 仅放大5%，避免眩晕 */
+            }
+        }
+
+        /* --- 遮罩层 (优化) --- */
+        /* 在动态背景和内容之间增加一层雾化遮罩，保证文字可读性 */
+        .bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            /* 上方较白以衬托文字，下方较透以显示山水 */
+            background: linear-gradient(to bottom, 
+                rgba(255,255,255,0.7) 0%, 
+                rgba(255,255,255,0.5) 40%, 
+                rgba(255,255,255,0.2) 100%);
+            pointer-events: none; 
+        }
+
+        /* --- 页面内容容器 --- */
+        /* 页面内容需要更高的 z-index */
+        .page {
+            position: relative; 
+            z-index: 10;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 40px;
+        }
+        .page.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* --- 通用玻璃卡片样式 --- */
+        .glass-card {
+            background: var(--light-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+            border-radius: 16px;
+        }
+
+        /* --- 输入控件美化 --- */
+        .input-group {
+            position: relative;
+            border-bottom: 1px solid #9CA3AF;
+            transition: border-color 0.3s;
+        }
+        .input-group:focus-within {
+            border-bottom-color: var(--primary);
+        }
+        .custom-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 12px 0;
+            font-size: 16px;
+            color: var(--dark);
+            font-family: sans-serif;
+        }
+
+        /* --- 按钮样式 --- */
+        .btn-primary {
+            background: linear-gradient(135deg, #1E9E8D 0%, #147D6F 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(30, 158, 141, 0.4);
+            transition: transform 0.2s;
+        }
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        /* --- 结果页网格 --- */
+        .bazi-grid-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 8px;
+        }
+
+        /* --- AI 打字机光标 --- */
+        .cursor::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+            color: var(--primary);
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* --- 加载太极动画 --- */
+        .taiji-spinner {
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='translate(50 50) scale(0.9)'%3E%3Cpath d='M0,-50 A50,50 0 1,0 0,50 A25,25 0 0,1 0,0 A25,25 0 0,0 0,-50 Z' fill='%23000'/%3E%3Cpath d='M0,-50 A50,50 0 1,1 0,50 A25,25 0 0,1 0,0 A25,25 0 0,0 0,-50 Z' fill='%23fff' stroke='%23ddd' stroke-width='1'/%3E%3Ccircle cx='0' cy='-25' r='6' fill='%23fff'/%3E%3Ccircle cx='0' cy='25' r='6' fill='%23000'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: contain;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <!-- 动态背景层 -->
+    <div class="ink-bg-anim"></div>
+    <!-- 静态遮罩层 (防止文字看不清) -->
+    <div class="bg-overlay"></div>
+
+    <!-- ================== 1. 首页 (输入页) ================== -->
+    <div id="page-home" class="page active">
+        <!-- 顶部留白，透出背景的阴阳鱼 -->
+        <div class="h-[35vh] w-full flex items-center justify-center relative">
+            <!-- 标题 -->
+            <div class="text-center mt-10 glass-card px-6 py-2 inline-block">
+                <h1 class="text-3xl font-bold tracking-widest text-gray-800">知 命</h1>
+                <p class="text-xs text-gray-500 mt-1 uppercase tracking-[0.3em]">DeepDestiny AI</p>
+            </div>
+        </div>
+
+        <!-- 输入卡片 (底部滑入效果) -->
+        <div class="px-6">
+            <div class="glass-card p-8">
+                <div class="text-center mb-8">
+                    <p class="text-gray-600 text-sm italic">“万物负阴而抱阳，冲气以为和”</p>
+                </div>
+
+                <!-- 表单 -->
+                <div class="space-y-8">
+                    <!-- 日期 -->
+                    <div class="input-group">
+                        <label class="text-xs text-teal-700 font-bold absolute -top-3 left-0">出生日期 (阳历)</label>
+                        <div class="flex items-center">
+                            <i class="far fa-calendar text-gray-400 mr-3"></i>
+                            <input type="date" id="input-date" class="custom-input" placeholder="选择日期">
+                        </div>
+                    </div>
+
+                    <!-- 时辰 -->
+                    <div class="input-group">
+                        <label class="text-xs text-teal-700 font-bold absolute -top-3 left-0">出生时辰</label>
+                        <div class="flex items-center">
+                            <i class="far fa-clock text-gray-400 mr-3"></i>
+                            <select id="input-time" class="custom-input bg-transparent">
+                                <option value="" disabled selected>请选择时辰</option>
+                                <option value="不详">时辰不详</option>
+                                <option value="子时">子时 (23:00-01:00)</option>
+                                <option value="丑时">丑时 (01:00-03:00)</option>
+                                <option value="寅时">寅时 (03:00-05:00)</option>
+                                <option value="卯时">卯时 (05:00-07:00)</option>
+                                <option value="辰时">辰时 (07:00-09:00)</option>
+                                <option value="巳时">巳时 (09:00-11:00)</option>
+                                <option value="午时">午时 (11:00-13:00)</option>
+                                <option value="未时">未时 (13:00-15:00)</option>
+                                <option value="申时">申时 (15:00-17:00)</option>
+                                <option value="酉时">酉时 (17:00-19:00)</option>
+                                <option value="戌时">戌时 (19:00-21:00)</option>
+                                <option value="亥时">亥时 (21:00-23:00)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 按钮 -->
+                <div class="mt-10">
+                    <button onclick="startCalculation()" class="btn-primary w-full py-4 rounded-xl font-bold text-lg tracking-widest flex items-center justify-center gap-2">
+                        <span>开始排盘</span>
+                        <i class="fas fa-arrow-right text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <p class="text-center text-[10px] text-gray-400 mt-4">
+                点击即代表同意《服务协议》 | 结果仅供娱乐
+            </p>
+        </div>
+    </div>
+
+    <!-- ================== 2. 结果展示页 ================== -->
+    <div id="page-result" class="page">
+        <!-- 导航栏 -->
+        <div class="pt-10 pb-4 px-4 flex items-center justify-between sticky top-0 z-20 glass-card rounded-none border-x-0 border-t-0 border-b border-white/40 mb-4">
+            <button onclick="navTo('page-home')" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/50 text-gray-600">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="font-bold text-gray-800">命盘详情</span>
+            <div class="w-8"></div> <!-- 占位 -->
+        </div>
+
+        <div class="px-4 pb-24">
+            <!-- 核心八字卡片 -->
+            <div class="glass-card p-5 mb-4 relative overflow-hidden">
+                <!-- 装饰水印 -->
+                <i class="fas fa-dragon absolute -right-4 -bottom-4 text-8xl text-gray-400/10 pointer-events-none"></i>
+                
+                <!-- 日期对照 -->
+                <div class="flex justify-between items-center mb-6 border-b border-gray-300/30 pb-3">
+                    <div class="text-left">
+                        <div class="text-[10px] text-gray-500">阳历</div>
+                        <div class="font-sans font-bold text-gray-800">2025.11.20</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-gray-500">农历</div>
+                        <div class="font-bold text-teal-800">十月初一</div>
+                    </div>
+                </div>
+
+                <!-- 四柱排盘 -->
+                <div class="grid grid-cols-4 gap-2 mb-6">
+                    <!-- 年柱 -->
+                    <div class="bazi-grid-item">
+                        <span class="text-xs text-gray-400 mb-1">年柱</span>
+                        <span class="text-xl font-bold text-gray-800 block">乙</span>
+                        <span class="text-xl font-bold text-gray-800 block">巳</span>
+                    </div>
+                    <!-- 月柱 -->
+                    <div class="bazi-grid-item">
+                        <span class="text-xs text-gray-400 mb-1">月柱</span>
+                        <span class="text-xl font-bold text-gray-800 block">丁</span>
+                        <span class="text-xl font-bold text-gray-800 block">亥</span>
+                    </div>
+                    <!-- 日柱 (高亮) -->
+                    <div class="bazi-grid-item border border-teal-400 bg-teal-50/50">
+                        <span class="text-xs text-teal-600 mb-1">日主</span>
+                        <span class="text-xl font-bold text-teal-900 block">癸</span>
+                        <span class="text-xl font-bold text-teal-900 block">巳</span>
+                    </div>
+                    <!-- 时柱 -->
+                    <div class="bazi-grid-item">
+                        <span class="text-xs text-gray-400 mb-1">时柱</span>
+                        <span class="text-xl font-bold text-gray-800 block">壬</span>
+                        <span class="text-xl font-bold text-gray-800 block">子</span>
+                    </div>
+                </div>
+
+                <!-- 五行量化 -->
+                <div>
+                    <div class="flex justify-between text-xs text-gray-500 mb-2">
+                        <span>五行分布</span>
+                        <span>生肖：<span class="text-gray-800 font-bold">蛇</span></span>
+                    </div>
+                    <div class="flex h-3 rounded-full overflow-hidden shadow-inner">
+                        <div class="bg-green-600 w-[20%]" title="木"></div>
+                        <div class="bg-red-500 w-[40%]" title="火"></div>
+                        <div class="bg-yellow-500 w-[0%]" title="土"></div>
+                        <div class="bg-gray-300 w-[0%]" title="金"></div>
+                        <div class="bg-blue-500 w-[40%]" title="水"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-gray-400 mt-1 font-sans">
+                        <span>木</span><span>火</span><span>土</span><span>金</span><span>水</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 缺失警示 (红色系) -->
+            <div class="glass-card p-4 mb-4 border-l-4 border-l-red-400 bg-red-50/60">
+                <div class="flex items-start">
+                    <div class="mt-1 mr-3 text-red-500"><i class="fas fa-bell"></i></div>
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-sm">五行缺失检测</h3>
+                        <p class="text-xs text-gray-600 mt-1">
+                            您的命盘中五行缺 <b class="text-red-600 text-sm">金、土</b>。
+                            <br>五行流转不息，缺失可能影响运势平衡。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 广告位 -->
+            <div class="glass-card p-3 flex items-center justify-center border-dashed border-gray-300 mb-6">
+                <span class="text-xs text-gray-400">广告：招财开运金饰推荐</span>
+            </div>
+        </div>
+
+        <!-- 底部悬浮按钮 -->
+        <div class="fixed bottom-0 left-0 w-full p-4 pb-8 bg-gradient-to-t from-white via-white/90 to-transparent z-30 max-w-[430px] mx-auto left-0 right-0">
+            <button onclick="goToAIReasoning()" class="btn-primary w-full py-3 rounded-full text-lg font-bold flex items-center justify-center shadow-xl animate-pulse">
+                <i class="fas fa-sparkles mr-2"></i> AI 深度推理解读
+            </button>
+        </div>
+    </div>
+
+    <!-- ================== 3. AI 推理/解释页 ================== -->
+    <div id="page-ai" class="page">
+        <!-- 顶部 -->
+        <div class="pt-12 px-6 flex items-center justify-between z-20 relative">
+            <div class="flex items-center text-gray-800">
+                <div class="w-8 h-8 rounded bg-teal-600 text-white flex items-center justify-center mr-3">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold text-lg leading-none">DeepSeek</h2>
+                    <span class="text-[10px] text-gray-500">命理模型推理中...</span>
+                </div>
+            </div>
+            <button onclick="navTo('page-result')" class="w-8 h-8 rounded-full bg-white/40 flex items-center justify-center text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- 内容滚动区 -->
+        <div class="px-6 mt-6 pb-10">
+            <div class="glass-card min-h-[70vh] p-6 relative">
+                
+                <!-- 思考状态 (初始显示) -->
+                <div id="ai-thinking" class="flex flex-col items-center justify-center h-64">
+                    <div class="taiji-spinner mb-4 grayscale opacity-60"></div>
+                    <p class="text-sm text-gray-500 tracking-widest">正在解析天干地支...</p>
+                    <p class="text-xs text-gray-400 mt-2">Connecting to DeepSeek API</p>
+                </div>
+
+                <!-- 结果文字 (初始隐藏) -->
+                <div id="ai-content" class="hidden">
+                    <div class="prose prose-sm text-gray-700 leading-relaxed font-sans">
+                        <!-- 动态插入点 -->
+                        <div id="typewriter-text"></div>
+                    </div>
+                    
+                    <!-- 底部引用 -->
+                    <div class="mt-8 pt-4 border-t border-gray-200 text-center">
+                        <p class="font-serif text-lg text-teal-800 italic" id="poetry-quote"></p>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- 操作按钮 -->
+            <div class="mt-6 flex gap-3">
+                <button class="flex-1 py-3 bg-white/60 backdrop-blur rounded-xl text-gray-700 text-sm font-bold border border-white/50">
+                    <i class="fas fa-share-alt mr-1"></i> 分享报告
+                </button>
+                <button class="flex-1 py-3 bg-teal-50/60 backdrop-blur rounded-xl text-teal-700 text-sm font-bold border border-teal-100">
+                    <i class="fas fa-lock mr-1"></i> 解锁流年
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 (全屏) -->
+    <div id="global-loader" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center hidden">
+        <div class="taiji-spinner mb-4"></div>
+        <p class="text-gray-500 tracking-widest animate-pulse">乾坤排盘中...</p>
+    </div>
+
+</div>
+
+<script>
+    // --- 简单的单页路由逻辑 ---
+    
+    function navTo(pageId) {
+        // 隐藏所有页
+        document.querySelectorAll('.page').forEach(el => {
+            el.classList.remove('active');
+            setTimeout(() => {
+                if(!el.classList.contains('active')) el.style.display = 'none';
+            }, 400); // 等待 CSS transition
+        });
+
+        // 显示目标页
+        const target = document.getElementById(pageId);
+        target.style.display = 'block';
+        // 强制重绘
+        setTimeout(() => {
+            target.classList.add('active');
+        }, 10);
+    }
+
+    function startCalculation() {
+        const date = document.getElementById('input-date').value;
+        if(!date) {
+            alert('请赐予您的生辰八字');
+            return;
+        }
+
+        // 显示全屏加载
+        const loader = document.getElementById('global-loader');
+        loader.classList.remove('hidden');
+        loader.style.display = 'flex';
+
+        // 模拟计算延迟
+        setTimeout(() => {
+            loader.style.display = 'none';
+            navTo('page-result');
+        }, 1500);
+    }
+
+    function goToAIReasoning() {
+        navTo('page-ai');
+        
+        // 重置状态
+        document.getElementById('ai-thinking').style.display = 'flex';
+        document.getElementById('ai-content').classList.add('hidden');
+        document.getElementById('typewriter-text').innerHTML = '';
+        document.getElementById('poetry-quote').innerHTML = '';
+
+        // 模拟 AI 思考后输出
+        setTimeout(() => {
+            document.getElementById('ai-thinking').style.display = 'none';
+            document.getElementById('ai-content').classList.remove('hidden');
+            startTypewriter();
+        }, 2000);
+    }
+
+    // --- 打字机效果 ---
+    function startTypewriter() {
+        const text = `
+<h3 class="font-bold text-gray-900 text-base mb-2">【性格侧写】</h3>
+<p class="mb-4">日主<b>癸水</b>生于亥月，水旺之时。您如同深潭之水，外表平静内敛，实则内心智慧深邃，观察力极强。您善于以柔克刚，适应环境能力极佳，但有时难免多愁善感，思虑过重。</p>
+
+<h3 class="font-bold text-gray-900 text-base mb-2">【五行补救】</h3>
+<p class="mb-4">命局缺<b>金、土</b>。土能止水，金能生水（此处需通关）。建议佩戴<b>黄水晶</b>或<b>金银饰品</b>。生活中多穿米色、白色衣物。事业方向适合向<b>西方</b>或<b>中原</b>地区发展，从事金融或房地产相关行业可获贵人相助。</p>
+`;
+        const poetry = "“行到水穷处，坐看云起时。”";
+
+        const container = document.getElementById('typewriter-text');
+        const quoteContainer = document.getElementById('poetry-quote');
+        
+        // 模拟流式输出 HTML
+        container.innerHTML = text + '<span class="cursor"></span>';
+        
+        // 模拟最后显示诗句
+        setTimeout(() => {
+            quoteContainer.innerText = poetry;
+            document.querySelector('.cursor').style.display = 'none'; // 停止光标
+        }, 1500);
+    }
+</script>
+
+</body>
+</html>
+
+        const container = document.getElementById('typewriter-text');
+        const quoteContainer = document.getElementById('poetry-quote');
+        
+        // 模拟流式输出 HTML (简单版)
+        // 实际开发需解析 Markdown
+        let i = 0;
+        // 为了效果，这里直接一次性渲染HTML，但用 CSS 模拟光标
+        // 若要逐字渲染 HTML 比较复杂，这里简化为分段显示
+        
+        container.innerHTML = text + '<span class="cursor"></span>';
+        
+        // 模拟最后显示诗句
+        setTimeout(() => {
+            quoteContainer.innerText = poetry;
+            document.querySelector('.cursor').style.display = 'none'; // 停止光标
+        }, 1500);
+    }
+</script>
+
+</body>
+</html>
