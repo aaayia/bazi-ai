@@ -1,6 +1,7 @@
 package com.company.project.controller;
 
 import com.company.project.common.result.Result;
+import com.company.project.model.dto.AnalysisDTO;
 import com.company.project.model.dto.CalculationDTO;
 import com.company.project.model.vo.CalculationVO;
 import com.company.project.service.BaziService;
@@ -20,5 +21,11 @@ public class BaziController {
     public Result<CalculationVO> calculate(@Valid @RequestBody CalculationDTO dto) {
         CalculationVO vo = baziService.calculate(dto);
         return Result.success(vo);
+    }
+
+    @PostMapping("/analysis")
+    public Result<CalculationVO.Analysis> getAnalysis(@Valid @RequestBody AnalysisDTO dto) {
+        CalculationVO.Analysis analysis = baziService.getAnalysis(dto);
+        return Result.success(analysis);
     }
 }
