@@ -1,74 +1,78 @@
 <template>
-  <div class="page-container">
+  <view class="page-container">
     <!-- Background Elements -->
     <image class="ink-bg-anim" src="/static/backgorund.png" mode="aspectFill" />
-    <div class="bg-overlay"></div>
+    <view class="bg-overlay"></view>
+
+    <!-- Loading Animation - Always visible for testing -->
+    <LoadingAnimation 
+      :show="true" 
+      primaryText="测试Loading显示..."
+    />
 
     <!-- 顶部留白 -->
-    <div class="header-spacer flex items-center justify-center relative">
-      <div class="text-center mt-10 glass-card px-6 py-2 inline-block title-card">
-        <h1 class="title-text">知 命</h1>
-        <p class="subtitle-text">DeepDestiny AI</p>
-      </div>
-    </div>
+    <view class="header-spacer flex items-center justify-center relative">
+      <view class="text-center mt-10 glass-card px-6 py-2 inline-block title-card">
+        <text class="title-text">知 命</text>
+        <text class="subtitle-text">DeepDestiny AI</text>
+      </view>
+    </view>
 
     <!-- 输入卡片 -->
-    <div class="content-wrapper px-6">
-      <div class="glass-card p-8">
-        <div class="text-center mb-8">
-          <p class="quote-text">"万物负阴而抱阳，冲气以为和"</p>
-        </div>
+    <view class="content-wrapper px-6">
+      <view class="glass-card p-8">
+        <view class="text-center mb-8">
+          <text class="quote-text">"万物负阴而抱阳，冲气以为和"</text>
+        </view>
 
-        <div class="form-group space-y-8">
+        <view class="form-group space-y-8">
           <!-- 日期 -->
-          <div class="input-group">
+          <view class="input-group">
             <label class="input-label">出生日期 (阳历)</label>
-            <div class="flex items-center py-3">
+            <view class="flex items-center py-3">
               <picker mode="date" :value="birthDate" @change="onDateChange" class="w-full">
-                <div class="picker-text">
+                <view class="picker-text">
                   {{ birthDate || '请选择日期' }}
-                </div>
+                </view>
               </picker>
-            </div>
-          </div>
+            </view>
+          </view>
 
           <!-- 时辰 -->
-          <div class="input-group">
+          <view class="input-group">
             <label class="input-label">出生时辰</label>
-            <div class="flex items-center py-3">
+            <view class="flex items-center py-3">
               <picker mode="selector" :range="timeOptions" @change="onTimeChange" class="w-full">
-                <div class="picker-text">
+                <view class="picker-text">
                   {{ birthTime || '请选择时辰' }}
-                </div>
+                </view>
               </picker>
-            </div>
-          </div>
-        </div>
+            </view>
+          </view>
+        </view>
 
-        <div class="mt-10">
-          <button @click="startCalculation" :disabled="isLoading" class="btn-primary w-full py-4 rounded-xl font-bold text-lg tracking-widest flex items-center justify-center gap-2">
-            <template v-if="!isLoading">
-              <span>开始排盘</span>
-            </template>
-            <template v-else>
-              <image src="/static/baguatu.svg" class="loading-icon" />
-              <span>乾坤排盘中...</span>
-            </template>
+        <view class="mt-10">
+          <button @click="toggleLoading" class="btn-primary w-full py-4 rounded-xl font-bold text-lg tracking-widest flex items-center justify-center gap-2">
+            <text>切换Loading ({{ isLoading ? '显示中' : '已隐藏' }})</text>
           </button>
-        </div>
-      </div>
+          <button @click="startCalculation" class="btn-primary w-full py-4 rounded-xl font-bold text-lg tracking-widest flex items-center justify-center gap-2" style="margin-top: 10px;">
+            <text>开始排盘</text>
+          </button>
+        </view>
+      </view>
       
-      <p class="footer-text mt-4">
+      <view class="footer-text mt-4">
         点击即代表同意《服务协议》 | 结果仅供娱乐
-      </p>
-    </div>
-  </div>
+      </view>
+    </view>
+  </view>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { calculateBazi } from '@/api/bazi'
 import { useBaziStore } from '@/store/bazi'
+import LoadingAnimation from '@/components/LoadingAnimation.vue'
 
 const birthDate = ref('')
 const birthTime = ref('')
@@ -85,6 +89,11 @@ const onTimeChange = (e) => {
   birthTime.value = timeOptions[e.detail.value]
 }
 
+const toggleLoading = () => {
+  isLoading.value = !isLoading.value
+  console.log('Loading state:', isLoading.value)
+}
+
 const startCalculation = async () => {
   if (!birthDate.value || !birthTime.value) {
     uni.showToast({ title: '请完整填写信息', icon: 'none' })
@@ -92,21 +101,13 @@ const startCalculation = async () => {
   }
 
   isLoading.value = true
-  const startTime = Date.now()
-  const minLoadingTime = 1500 // Minimum 1.5 seconds loading time
+  console.log('Starting calculation, isLoading:', isLoading.value)
 
   try {
     const res = await calculateBazi({
       birthDate: birthDate.value,
       birthTime: birthTime.value
     })
-    
-    // Ensure minimum loading time
-    const elapsed = Date.now() - startTime
-    const remaining = minLoadingTime - elapsed
-    if (remaining > 0) {
-      await new Promise(resolve => setTimeout(resolve, remaining))
-    }
     
     if (res.data.code === 200) {
       baziStore.setResult(res.data.data)
@@ -119,12 +120,13 @@ const startCalculation = async () => {
     console.error(e)
   } finally {
     isLoading.value = false
+    console.log('Calculation done, isLoading:', isLoading.value)
   }
 }
 </script>
 
 <style scoped>
-/* Layout Helpers */
+/* Same styles as before */
 .page-container {
     min-height: 100vh;
     position: relative;
@@ -196,22 +198,5 @@ const startCalculation = async () => {
     border-radius: 0.75rem;
     font-size: 1.125rem;
     letter-spacing: 0.1em;
-}
-
-/* Loading Icon Animation */
-.loading-icon {
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 16rpx;
-  animation: rotate 2s linear infinite;
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>
